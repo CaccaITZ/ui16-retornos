@@ -1,0 +1,1 @@
+Build retry using Java 21 required by Capacitor Android.
