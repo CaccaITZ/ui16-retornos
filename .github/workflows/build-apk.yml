@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -18,7 +20,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
       - name: Install dependencies
         run: npm install
       - name: Build web app
@@ -46,11 +52,22 @@ jobs:
           p.write_text(s)
           PY
       - name: Build debug APK
+        shell: bash
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          set +e
+          ./gradlew assembleDebug --stacktrace --warning-mode all 2>&1 | tee ../gradle-build.log
+          code=${PIPESTATUS[0]}
+          exit $code
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ui16-Retornos-Build-Log
+          path: gradle-build.log
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Ui16-Retornos-APK
