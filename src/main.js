@@ -1,0 +1,143 @@
+import { SoundcraftUI } from "soundcraft-ui-connection";
+import "./style.css";
+
+const app = document.getElementById("app");
+app.innerHTML = `<h1>RETORNOS — Ui16</h1>
+<div id="status">Conectando à Ui16...</div>
+
+<div class="master">
+<h2>RETORNOS — CONTROLE GERAL</h2>
+<div id="masterValue" class="value">0.0 dB</div>
+<input id="master" type="range" min="-100" max="10" step="0.1" value="0">
+<small>Este controle sobe/baixa FRENTE, BATERIA e TECLADO juntos. 0 dB = sem alteração.</small>
+<button id="reset">VOLTAR AO EQUILÍBRIO</button>
+</div>
+
+<div class="master mutePanel">
+<h2>MUTE</h2>
+<button id="muteGroup1" class="muteButton">OFF</button>
+</div>
+
+<div class="individuals">
+<div class="card">
+<h2>FRENTE</h2><div id="v1" class="value">--</div>
+<input id="f1" type="range" min="-100" max="10" step="0.1">
+</div>
+<div class="card">
+<h2>BATERIA</h2><div id="v2" class="value">--</div>
+<input id="f2" type="range" min="-100" max="10" step="0.1">
+</div>
+<div class="card">
+<h2>TECLADO</h2><div id="v3" class="value">--</div>
+<input id="f3" type="range" min="-100" max="10" step="0.1">
+</div>
+</div>`;
+
+const IP="192.168.10.101";
+const conn=new SoundcraftUI(IP);
+const aux=[conn.master.aux(1),conn.master.aux(2),conn.master.aux(3)];
+
+const vals=[
+ document.getElementById("v1"),
+ document.getElementById("v2"),
+ document.getElementById("v3")
+];
+const sliders=[
+ document.getElementById("f1"),
+ document.getElementById("f2"),
+ document.getElementById("f3")
+];
+const status=document.getElementById("status");
+const master=document.getElementById("master");
+const masterValue=document.getElementById("masterValue");
+const muteGroup1=conn.muteGroup(1);
+const muteGroupButton=document.getElementById("muteGroup1");
+
+muteGroup1.state$.subscribe(state=>{
+ const muted=Boolean(state);
+ muteGroupButton.textContent=muted?"ON":"OFF";
+ muteGroupButton.style.background=muted?"#b22":"#333";
+});
+
+muteGroupButton.addEventListener("click",()=>{
+ muteGroup1.toggle();
+});
+
+let current=[null,null,null];
+let base=[null,null,null];
+let masterOffset=0;
+let ready=false;
+let internal=false;
+
+function dbText(v){
+ if(v===null || Number.isNaN(v)) return "--";
+ if(!Number.isFinite(v) || v<=-79) return "-∞ dB";
+ return Number(v).toFixed(1)+" dB";
+}
+function clamp(v){return Math.max(-100,Math.min(10,v));}
+
+aux.forEach((a,i)=>{
+ a.faderLevelDB$.subscribe(v=>{
+   current[i]=Number(v);
+   vals[i].textContent=dbText(current[i]);
+   if(!internal && !ready && current.every(v=>v!==null && !Number.isNaN(v))){
+     base=[...current];
+     sliders.forEach((s,j)=>s.value=Number.isFinite(base[j])?base[j]:-100);
+     ready=true;
+     status.textContent="CONECTADO — FRENTE, BATERIA e TECLADO";
+     status.style.color="#7f7";
+   }
+   if(!internal && ready){
+     base[i]=current[i];
+     sliders[i].value=Number.isFinite(current[i])?current[i]:-100;
+   }
+ });
+});
+
+conn.status$.subscribe(s=>{
+ if(s.type==="OPEN"){
+   status.textContent=ready?"CONECTADO — Ui16 192.168.10.101":"CONECTADO — lendo AUX...";
+   status.style.color="#7f7";
+ }else if(s.type==="ERROR"){
+   status.textContent="ERRO DE CONEXÃO";
+   status.style.color="#f77";
+ }
+});
+
+conn.connect();
+
+function applyMaster(){
+ if(!ready)return;
+ internal=true;
+ aux.forEach((a,i)=>{
+   let target=Number.isFinite(base[i])?base[i]+masterOffset:masterOffset;
+   target=clamp(target);
+   a.setFaderLevelDB(target<=-79?-Infinity:target);
+ });
+ setTimeout(()=>internal=false,60);
+}
+
+master.addEventListener("input",()=>{
+ masterOffset=Number(master.value);
+ masterValue.textContent=(masterOffset>=0?"+":"")+masterOffset.toFixed(1)+" dB";
+ applyMaster();
+});
+
+sliders.forEach((s,i)=>{
+ s.addEventListener("input",()=>{
+   if(!ready)return;
+   const target=Number(s.value);
+   base[i]=target-masterOffset;
+   internal=true;
+   aux[i].setFaderLevelDB(target<=-79?-Infinity:target);
+   setTimeout(()=>internal=false,60);
+   vals[i].textContent=dbText(target);
+ });
+});
+
+document.getElementById("reset").addEventListener("click",()=>{
+ masterOffset=0;
+ master.value=0;
+ masterValue.textContent="0.0 dB";
+ applyMaster();
+});
