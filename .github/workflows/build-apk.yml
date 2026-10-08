@@ -52,11 +52,22 @@ jobs:
           p.write_text(s)
           PY
       - name: Build debug APK
+        shell: bash
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          set +e
+          ./gradlew assembleDebug --stacktrace --warning-mode all 2>&1 | tee ../gradle-build.log
+          code=${PIPESTATUS[0]}
+          exit $code
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ui16-Retornos-Build-Log
+          path: gradle-build.log
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Ui16-Retornos-APK
