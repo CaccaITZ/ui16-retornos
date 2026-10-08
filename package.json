@@ -1,0 +1,20 @@
+{
+  "name": "ui16-retornos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Controle de retornos AUX 1-3 e Mute Group 01 para Soundcraft Ui16.",
+  "scripts": {
+    "build": "vite build",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.4.4",
+    "@capacitor/core": "7.4.4",
+    "soundcraft-ui-connection": "7.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.4.4",
+    "vite": "7.1.7"
+  }
+}
