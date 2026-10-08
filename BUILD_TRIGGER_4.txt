@@ -1,0 +1,1 @@
+Build retry with captured Gradle log.
