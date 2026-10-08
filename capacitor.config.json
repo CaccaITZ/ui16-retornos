@@ -1,0 +1,8 @@
+{
+  "appId": "br.claudioqueiroz.ui16retornos",
+  "appName": "Ui16 Retornos",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  }
+}
